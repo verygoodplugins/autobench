@@ -6,8 +6,9 @@
 #   - piper binary in PATH + voice .onnx (https://github.com/rhasspy/piper)
 #   - fixtures/sample.wav (16kHz PCM) for voice modes
 #
-# text-to-text proves the LLM abstraction with Claude; voice-* pipelines
-# exercise Silero VAD, Parakeet STT, and Piper TTS once fixtures exist.
+# This matrix currently covers only text-to-text pipelines and proves the
+# LLM abstraction with Claude. Voice-mode prerequisites above are for future
+# voice pipeline additions, not for the pipelines defined in this file today.
 mode: text-to-text
 runs: 2
 prompts:

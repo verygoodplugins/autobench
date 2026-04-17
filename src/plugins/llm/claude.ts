@@ -14,7 +14,7 @@ class ClaudePlugin implements LlmPlugin<ClaudeConfig> {
   readonly kind = "llm" as const;
   readonly name = "claude";
   readonly description =
-    "Anthropic Claude via Messages API (streaming). No prompt caching.";
+    "Anthropic Claude via Messages API (streaming or non-streaming). No prompt caching.";
 
   private client!: Anthropic;
   private model = "claude-sonnet-4-6";
@@ -72,6 +72,28 @@ class ClaudePlugin implements LlmPlugin<ClaudeConfig> {
     const temperature = opts.temperature ?? this.temperature;
     if (temperature !== undefined) body.temperature = temperature;
     if (this.thinking) body.thinking = { type: "adaptive" };
+
+    if (opts.stream === false) {
+      const message = await this.client.messages.create(
+        body as Parameters<typeof this.client.messages.create>[0]
+      );
+      const totalMs = performance.now() - started;
+      const text = (message.content as Array<{ type: string; text?: string }>)
+        .filter((b) => b.type === "text")
+        .map((b) => b.text ?? "")
+        .join("");
+      yield {
+        text,
+        done: true,
+        timings: { ttftMs: totalMs, totalMs },
+        metadata: {
+          promptTokens: message.usage.input_tokens,
+          completionTokens: message.usage.output_tokens,
+          stopReason: message.stop_reason,
+        },
+      };
+      return;
+    }
 
     const stream = this.client.messages.stream(
       body as Parameters<typeof this.client.messages.stream>[0]
