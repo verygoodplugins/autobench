@@ -151,11 +151,12 @@ See `.env.example`. Key variables:
 
 Tracked here until work resumes:
 
-1. **Second plugin per slot** (advisor's unmet deliverable — proves the abstraction holds):
-   - VAD: Silero (ONNX)
-   - STT: Parakeet v3 via MLX (adapter for the `../autohub` parakeet server exists as a template)
-   - LLM: one non-Ollama — Claude API or MLX-LM direct
-   - TTS: Piper or Chatterbox
+1. **Second plugin per slot** — **landed** on `feat/second-plugin-per-slot` (2026-04-17). All four registered + dry-run verified:
+   - VAD: `silero` via `@ricky0123/vad-node` (ONNX, `NonRealTimeVAD.run()` batch API)
+   - STT: `parakeet` → autohub parakeet-server (defaults to :8179 to avoid whisper-server's :8178)
+   - LLM: `claude` via `@anthropic-ai/sdk` (streaming Messages, end-to-end verified with claude-haiku-4-5 at ~800ms TTFT / ~70 tok/s)
+   - TTS: `piper` CLI (batch mode, firstAudioMs == totalMs; requires `piper` binary + voice `.onnx`)
+   - Follow-on: run a voice-to-voice matrix once fixtures/ audio + a parakeet-server + piper voice are available end-to-end.
 2. **Decouple hardware sampling from "ollama"** — make the process name a field on LLM plugin metadata so non-Ollama LLMs still report RSS. `src/core/runner.ts:222`.
 3. **Wire SSE live-view in the dashboard** — server already emits `/run/stream` events; the UI currently polls `/runs` only.
 4. **Add fixtures/ audio** — short WAV clips + reference transcripts so `voice-to-voice.yaml` runs without manual setup. Include a `fixtures/README.md` with provenance.

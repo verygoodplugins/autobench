@@ -69,4 +69,5 @@ export async function loadBuiltins(): Promise<void> {
   await import("../plugins/llm/claude.js");
   await import("../plugins/tts/kokoro.js");
   await import("../plugins/tts/macos-say.js");
+  await import("../plugins/tts/piper.js");
 }
