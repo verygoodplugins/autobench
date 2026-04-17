@@ -131,8 +131,6 @@ export function VoicePanel({ registry }: { registry: Registry | null }) {
           const d = evt.data as { base64: string; format: string; ms: number };
           const url = base64WavToObjectUrl(d.base64, `audio/${d.format}`);
           patchTurn(turnId, { audioUrl: url, ttsMs: d.ms, audioFormat: d.format });
-          const audio = new Audio(url);
-          audio.play().catch(() => undefined);
         } else if (evt.event === "error") {
           const d = evt.data as { message: string };
           patchTurn(turnId, { error: d.message });
@@ -261,7 +259,12 @@ export function VoicePanel({ registry }: { registry: Registry | null }) {
               </div>
             )}
             {t.audioUrl && (
-              <audio controls src={t.audioUrl} style={{ width: "100%", marginTop: "0.25rem" }} />
+              <audio
+                controls
+                autoPlay
+                src={t.audioUrl}
+                style={{ width: "100%", marginTop: "0.25rem" }}
+              />
             )}
             {t.error && <div className="chat-error">turn error: {t.error}</div>}
           </div>

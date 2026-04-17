@@ -61,20 +61,18 @@ export function ChatPanel({ registry }: { registry: Registry | null }) {
 
     try {
       let acc = "";
+      const num = (s: string) => {
+        const n = Number(s);
+        return Number.isFinite(n) ? n : undefined;
+      };
       const body = {
         llm: {
           name: llmName,
           config: {
             model,
             ...(llmName === "ollama"
-              ? {
-                  temperature: Number(temperature) || undefined,
-                  numPredict: Number(maxTokens) || undefined,
-                }
-              : {
-                  temperature: Number(temperature) || undefined,
-                  maxTokens: Number(maxTokens) || undefined,
-                }),
+              ? { temperature: num(temperature), numPredict: num(maxTokens) }
+              : { temperature: num(temperature), maxTokens: num(maxTokens) }),
           },
         },
         messages: history,
