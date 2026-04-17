@@ -79,3 +79,22 @@ nav.tabs button.tab-active, .subtabs button.tab-active {
 .chat-input-row button { align-self: stretch; padding: 0 1.25rem; }
 
 .chat-error { color: #ff6b6b; font-size: 0.85rem; padding: 0.5rem 0.75rem; border: 1px solid #ff6b6b33; border-radius: 4px; }
+
+.ptt-row { display: flex; gap: 0.75rem; align-items: center; }
+.ptt-btn {
+  padding: 0.55rem 1.25rem; font-size: 0.95rem;
+  background: #0f1216; border: 1px solid var(--accent); color: var(--accent);
+  cursor: pointer;
+}
+.ptt-btn:hover { background: #14181e; }
+.ptt-btn-stop { border-color: #ff6b6b; color: #ff6b6b; }
+
+.turn {
+  display: grid; gap: 0.4rem; padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border); border-radius: 6px; background: #0b0d10;
+}
+.turn-metrics {
+  display: flex; gap: 0.9rem; font-size: 0.75rem; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+input[type="checkbox"] { accent-color: var(--accent); }

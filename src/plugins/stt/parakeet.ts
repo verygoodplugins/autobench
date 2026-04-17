@@ -1,4 +1,3 @@
-import FormData from "form-data";
 import { registry } from "../../core/registry.js";
 import type { SttPlugin } from "../../core/types.js";
 
@@ -51,18 +50,19 @@ class ParakeetPlugin implements SttPlugin<ParakeetConfig> {
     metadata?: Record<string, unknown>;
   }> {
     const started = performance.now();
+    const mime = format === "pcm16" ? "audio/wav" : `audio/${format}`;
     const form = new FormData();
-    form.append("file", audio, {
-      filename: `audio.${format}`,
-      contentType: `audio/${format === "pcm16" ? "wav" : format}`,
-    });
+    form.append(
+      "file",
+      new Blob([new Uint8Array(audio)], { type: mime }),
+      `audio.${format}`
+    );
     form.append("response_format", "json");
     form.append("language", this.language);
 
     const res = await fetch(`${this.serverUrl}/inference`, {
       method: "POST",
-      body: form as unknown as BodyInit,
-      headers: form.getHeaders(),
+      body: form,
     });
     if (!res.ok) {
       const body = await res.text();

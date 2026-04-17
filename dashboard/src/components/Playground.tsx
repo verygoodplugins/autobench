@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChatPanel } from "./playground/ChatPanel";
+import { VoicePanel } from "./playground/VoicePanel";
 
 type Registry = { vad: string[]; stt: string[]; llm: string[]; tts: string[] };
 
@@ -29,19 +30,13 @@ export function Playground() {
         <button
           className={mode === "voice" ? "tab-active" : ""}
           onClick={() => setMode("voice")}
-          disabled
-          title="coming next commit"
         >
           voice
         </button>
         {error && <span className="muted">registry: {error}</span>}
       </div>
       {mode === "chat" && <ChatPanel registry={registry} />}
-      {mode === "voice" && (
-        <div className="empty">
-          voice playground coming next — see <code>feat/playground-ui</code>
-        </div>
-      )}
+      {mode === "voice" && <VoicePanel registry={registry} />}
     </div>
   );
 }
