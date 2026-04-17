@@ -59,10 +59,10 @@ src/
 │   ├── hardware.ts    # sampleHardware() — darwin memory_pressure + RSS
 │   └── report.ts      # toMarkdownSummary(records) — groups by pipeline
 ├── plugins/
-│   ├── vad/sox-silence.ts
-│   ├── stt/whisper-server.ts
-│   ├── llm/ollama.ts
-│   └── tts/{kokoro,macos-say}.ts
+│   ├── vad/{sox-silence,silero}.ts
+│   ├── stt/{whisper-server,parakeet}.ts
+│   ├── llm/{ollama,claude}.ts
+│   └── tts/{kokoro,macos-say,piper}.ts
 ├── cli/{run,serve,list}.ts
 ├── server.ts          # Express + SSE
 └── index.ts           # public exports
@@ -145,24 +145,28 @@ See `.env.example`. Key variables:
 - `AUTOBENCH_PORT` — server port (default 8782)
 - `OLLAMA_BASE_URL` — default `http://localhost:11434`
 - `WHISPER_SERVER_URL` — default `http://localhost:8178`
+- `ANTHROPIC_API_KEY` — required by `llm/claude`; falls through to `config.apiKey` if unset
+- Parakeet STT defaults to `http://localhost:8179` — autohub's `parakeet-server` defaults to `:8178`, so start it with `PARAKEET_PORT=8179` (or override via the plugin's `serverUrl` config) to avoid collision with whisper-server
 - `GGML_METAL_TENSOR_DISABLE=1`, `GGML_METAL_BF16_DISABLE=1` — set on ollama serve for M5 Max stability
+
+## Recently Landed
+
+- **Second plugin per slot** — merged as PR #1, `feat/second-plugin-per-slot` → `main` (2026-04-17). Commits `f1631cd` (claude LLM), `9114144` (silero VAD), `a165133` (parakeet STT), `28d1a20` (piper TTS + demo matrix + doc update), `855cd71` (piper flag note), `b529ca8` (merge polish: opts.stream===false in claude, onnxruntime-node pinned to 1.21.0, YAML comment fix). `claude` verified end-to-end (~800ms TTFT on haiku-4-5); silero/parakeet/piper dry-run only, pending fixtures/ audio + running services.
 
 ## Open Follow-ups
 
-Tracked here until work resumes:
+Tracked here until work resumes. **The next session will take on #1 below.**
 
-1. **Second plugin per slot** — **landed** on `feat/second-plugin-per-slot` (2026-04-17). All four registered + dry-run verified:
-   - VAD: `silero` via `@ricky0123/vad-node` (ONNX, `NonRealTimeVAD.run()` batch API)
-   - STT: `parakeet` → autohub parakeet-server (defaults to :8179 to avoid whisper-server's :8178)
-   - LLM: `claude` via `@anthropic-ai/sdk` (streaming Messages, end-to-end verified with claude-haiku-4-5 at ~800ms TTFT / ~70 tok/s)
-   - TTS: `piper` CLI (batch mode, firstAudioMs == totalMs; requires `piper` binary + voice `.onnx`)
-   - Follow-on: run a voice-to-voice matrix once fixtures/ audio + a parakeet-server + piper voice are available end-to-end.
-2. **Decouple hardware sampling from "ollama"** — make the process name a field on LLM plugin metadata so non-Ollama LLMs still report RSS. `src/core/runner.ts:222`.
-3. **Wire SSE live-view in the dashboard** — server already emits `/run/stream` events; the UI currently polls `/runs` only.
-4. **Add fixtures/ audio** — short WAV clips + reference transcripts so `voice-to-voice.yaml` runs without manual setup. Include a `fixtures/README.md` with provenance.
+1. **Interactive playground UI** — current dashboard only reviews finished runs. Add a live "playground" tab so a human can (a) chat with a pipeline in real time and feel its TTFT/tok-s streaming, and (b) hold a voice-to-voice conversation and feel end-of-turn detection + first-audio latency. Proves the plugins from the usability angle, not just the metrics angle.
+   - Server-side: expose two new endpoints against existing plugins — `POST /playground/chat/stream` (SSE or WebSocket, streams LLM tokens) and `WS /playground/voice` (binary frames in: mic PCM16 → VAD → STT → LLM → TTS audio out). Reuse `registry.create()` + a short-lived playground session cache so the plugin-cache model still applies.
+   - Dashboard-side: new Playground panel with pipeline picker (reads `/plugins`), chat transcript + token stream, voice mode with push-to-talk or VAD-gated mic, audio playback, live latency readouts (TTFT, first-audio, end-of-turn).
+   - Keep the existing runs/benchmark view untouched — Playground is additive.
+2. **Decouple hardware sampling from "ollama"** — make the process name a field on LLM plugin metadata so non-Ollama LLMs still report RSS. `src/core/runner.ts:213`.
+3. **Wire SSE live-view in the dashboard** — server already emits `/run/stream` events; the UI currently polls `/runs` only. Naturally pairs with follow-up #1's SSE work.
+4. **Add fixtures/ audio** — short WAV clips + reference transcripts so `voice-to-voice.yaml` runs without manual setup. Include a `fixtures/README.md` with provenance. Unblocks end-to-end verification of silero + parakeet + piper.
 5. **WER computation** — `core/metrics.ts::wer` exists but `runOnce` doesn't invoke it. Compute when `prompt.reference` is set, write to `metrics.wer`.
 6. **`npm run bench` smoke in CI** — a headless matrix + text-only LLM mock plugin for GitHub Actions.
-7. **Publish**: `gh repo create verygoodplugins/autobench --public --push`, then `npm publish --access public` after CI is green.
+7. **Publish**: `npm publish --access public` once CI is green.
 8. **README badge row** (npm, CI, license) once 6–7 land.
 
 ## Testing the end-to-end path
