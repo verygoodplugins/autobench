@@ -64,6 +64,7 @@ export async function loadBuiltins(): Promise<void> {
   await import("../plugins/vad/sox-silence.js");
   await import("../plugins/vad/silero.js");
   await import("../plugins/stt/whisper-server.js");
+  await import("../plugins/stt/parakeet.js");
   await import("../plugins/llm/ollama.js");
   await import("../plugins/llm/claude.js");
   await import("../plugins/tts/kokoro.js");
