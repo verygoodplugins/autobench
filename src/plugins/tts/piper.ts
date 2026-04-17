@@ -17,7 +17,7 @@ class PiperPlugin implements TtsPlugin<PiperConfig> {
   readonly kind = "tts" as const;
   readonly name = "piper";
   readonly description =
-    "Piper TTS via CLI. Batch mode — firstAudioMs == totalMs. Requires `piper` binary + voice .onnx.";
+    "Piper TTS via CLI. Batch mode — firstAudioMs == totalMs. Requires `piper` binary + voice .onnx. Uses rhasspy/piper C++ flag syntax (--output_file, --length_scale); Python piper-tts uses hyphens — override via config.binary if needed.";
 
   private binary = "piper";
   private model = "";
