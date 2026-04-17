@@ -1,0 +1,50 @@
+# autobench matrix — end-to-end voice-to-voice pipeline.
+#
+# Requires:
+#   - Reference audio files in fixtures/ (WAV, 16 kHz mono)
+#   - A running whisper.cpp server (see: npm run whisper-server in
+#     uncensored-voice-server, or any compatible /inference endpoint)
+#   - Ollama running locally
+#
+# Run with:
+#   npm run bench configs/voice-to-voice.yaml
+mode: voice-to-voice
+runs: 2
+prompts:
+  - id: greeting
+    audioPath: fixtures/greeting.wav
+    reference: "Hello, how are you doing today?"
+  - id: question
+    audioPath: fixtures/question.wav
+    reference: "What's the capital of Peru?"
+
+pipelines:
+  - name: kokoro-fast
+    stt:
+      name: whisper-server
+      config:
+        serverUrl: http://localhost:8178
+    llm:
+      name: ollama
+      config:
+        model: qwen2.5-coder:32b
+        numPredict: 256
+    tts:
+      name: kokoro
+      config:
+        voice: af_heart
+
+  - name: macos-say-fast
+    stt:
+      name: whisper-server
+      config:
+        serverUrl: http://localhost:8178
+    llm:
+      name: ollama
+      config:
+        model: qwen2.5-coder:32b
+        numPredict: 256
+    tts:
+      name: macos-say
+      config:
+        voice: Samantha

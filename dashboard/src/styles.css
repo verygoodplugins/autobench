@@ -1,0 +1,32 @@
+:root {
+  color-scheme: dark;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --bg: #0b0d10;
+  --fg: #e6e6e6;
+  --muted: #8a8f98;
+  --accent: #7dd3fc;
+  --border: #1f2328;
+}
+
+html, body, #root { margin: 0; padding: 0; background: var(--bg); color: var(--fg); min-height: 100vh; }
+
+header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 1rem; }
+header h1 { margin: 0; font-size: 1.1rem; letter-spacing: 0.02em; }
+header .tag { color: var(--accent); }
+header .muted { color: var(--muted); font-size: 0.85rem; }
+
+main { padding: 1.5rem; display: grid; gap: 1.5rem; }
+
+section { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: #0f1216; }
+section h2 { margin: 0 0 0.75rem 0; font-size: 0.95rem; color: var(--muted); font-weight: 500; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); text-align: left; }
+th { color: var(--muted); font-weight: 500; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+select, button { background: #14181e; color: var(--fg); border: 1px solid var(--border); padding: 0.35rem 0.6rem; border-radius: 4px; font-family: inherit; font-size: 0.85rem; }
+select:focus, button:focus { outline: 1px solid var(--accent); }
+
+.row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+.empty { color: var(--muted); font-size: 0.85rem; padding: 2rem; text-align: center; }

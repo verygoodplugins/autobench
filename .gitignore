@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.log
+.env
+.env.local
+.DS_Store
+runs/*.jsonl
+runs/artifacts/
+!runs/.gitkeep
+dashboard/dist/
+dashboard/node_modules/
+dashboard/tsconfig.tsbuildinfo

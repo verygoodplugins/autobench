@@ -1,0 +1,14 @@
+# Smoke test matrix — fastest possible round-trip to validate the runner.
+mode: text-to-text
+runs: 2
+prompts:
+  - id: ping
+    text: "Reply with exactly: pong"
+pipelines:
+  - name: smoke
+    llm:
+      name: ollama
+      config:
+        model: qwen2.5-coder:32b
+        numCtx: 2048
+        numPredict: 8

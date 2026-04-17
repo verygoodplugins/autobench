@@ -1,0 +1,69 @@
+{
+  "name": "@verygoodplugins/autobench",
+  "version": "0.0.1",
+  "description": "Benchmark VAD, STT, LLM, and TTS combinations to find the optimal voice/chat pipeline for your hardware.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "autobench": "./bin/autobench.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "configs"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -w -p tsconfig.json",
+    "start": "node --enable-source-maps dist/server.js",
+    "bench": "node --enable-source-maps dist/cli/run.js",
+    "serve": "node --enable-source-maps dist/cli/serve.js",
+    "dashboard:dev": "npm --prefix dashboard run dev",
+    "dashboard:build": "npm --prefix dashboard run build",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "benchmark",
+    "voice-ai",
+    "llm",
+    "stt",
+    "tts",
+    "vad",
+    "ollama",
+    "mlx",
+    "apple-silicon",
+    "local-llm",
+    "whisper",
+    "kokoro",
+    "m5-max"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/verygoodplugins/autobench.git"
+  },
+  "license": "MIT",
+  "author": "Very Good Plugins <hello@verygoodplugins.com>",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "form-data": "^4.0.0",
+    "kokoro-js": "^1.2.1",
+    "node-fetch": "^3.3.2",
+    "nodejs-whisper": "^0.2.9",
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  },
+  "workspaces": [
+    "dashboard"
+  ]
+}

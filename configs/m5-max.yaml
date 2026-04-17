@@ -1,0 +1,55 @@
+# autobench matrix — M5 Max (128 GB) showcase
+#
+# Reproduces the text-to-text portion of the uncensored-voice-server
+# test-m5-showcase.sh benchmark. Adds Qwen3.6 MoE and Kokoro TTS swap.
+#
+# Run with:
+#   npm run bench configs/m5-max.yaml
+#
+# Swap brains live by editing the pipelines list.
+mode: text-to-text
+runs: 3
+prompts:
+  - id: short-tools
+    text: "List three command-line tools every JavaScript developer should know and one reason each."
+  - id: reasoning
+    text: "A train leaves Boston at 7:00 AM going 60 mph toward NYC. Another leaves NYC at 7:15 AM going 80 mph toward Boston. The cities are 220 miles apart. When do they meet? Show your reasoning."
+  - id: creative
+    text: "Write a three-sentence noir-style opening about a detective who only drinks yerba mate."
+
+pipelines:
+  - name: fast
+    llm:
+      name: ollama
+      config:
+        model: qwen2.5-coder:32b
+        numCtx: 16384
+        numPredict: 512
+        think: false
+
+  - name: big
+    llm:
+      name: ollama
+      config:
+        model: llama3.3:70b
+        numCtx: 8192
+        numPredict: 512
+        think: false
+
+  - name: reasoning
+    llm:
+      name: ollama
+      config:
+        model: deepseek-r1:70b
+        numCtx: 16384
+        numPredict: 2048
+        think: true
+
+  - name: moe
+    llm:
+      name: ollama
+      config:
+        model: qwen3.6:35b-a3b
+        numCtx: 32768
+        numPredict: 1024
+        think: false
