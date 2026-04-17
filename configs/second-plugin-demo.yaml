@@ -1,0 +1,29 @@
+# Demo matrix exercising the second plugin per slot.
+#
+# Prereqs (any subset — comment out pipelines you can't run):
+#   - ANTHROPIC_API_KEY exported (claude)
+#   - parakeet-server running on :8179 (see ../autohub/services/parakeet-server)
+#   - piper binary in PATH + voice .onnx (https://github.com/rhasspy/piper)
+#   - fixtures/sample.wav (16kHz PCM) for voice modes
+#
+# This matrix currently covers only text-to-text pipelines and proves the
+# LLM abstraction with Claude. Voice-mode prerequisites above are for future
+# voice pipeline additions, not for the pipelines defined in this file today.
+mode: text-to-text
+runs: 2
+prompts:
+  - id: haiku
+    text: "Write a single-line haiku about benchmarks."
+pipelines:
+  - name: claude-haiku
+    llm:
+      name: claude
+      config:
+        model: claude-haiku-4-5
+        maxTokens: 96
+  - name: claude-sonnet
+    llm:
+      name: claude
+      config:
+        model: claude-sonnet-4-6
+        maxTokens: 96
