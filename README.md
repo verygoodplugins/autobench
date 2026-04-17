@@ -2,7 +2,7 @@
 
 Benchmark VAD, STT, LLM, and TTS combinations to find the optimal voice/chat pipeline for your hardware.
 
-Part of the Auto- family: [AutoMem](https://github.com/verygoodplugins/automem), [AutoJack](https://github.com/verygoodplugins), [AutoHub](https://github.com/verygoodplugins), **AutoBench**.
+Part of the Auto- family: [AutoMem](https://github.com/verygoodplugins/automem), [AutoJack](https://autojack.ai), AutoHub. Brought to you by [Jack Arturo](https://x.com/jjack_arturo) & [Very Good Plugins](https://verygoodplugins.com).
 
 ## What it is
 
@@ -14,15 +14,15 @@ A plugin-based harness for sweeping configurations across four slots:
                (text-to-text stops here)
 ```
 
-The thing being benchmarked is the **configuration**, not any single component. Pick a slot, pick candidates, pick prompts, and autobench tells you which combination is fastest, most accurate, or most memory-efficient on *your* machine.
+The thing being benchmarked is the **configuration**, not any single component. Pick a slot, pick candidates, pick prompts, and autobench tells you which combination is fastest, most accurate, or most memory-efficient on _your_ machine.
 
 ## Three modes
 
-| mode | slots used | typical use |
-| --- | --- | --- |
-| `text-to-text` | LLM | compare local models at fixed prompts |
-| `voice-to-text` | VAD + STT + LLM | transcription + reply pipeline |
-| `voice-to-voice` | VAD + STT + LLM + TTS | full turn latency, first-audio time |
+| mode             | slots used            | typical use                           |
+| ---------------- | --------------------- | ------------------------------------- |
+| `text-to-text`   | LLM                   | compare local models at fixed prompts |
+| `voice-to-text`  | VAD + STT + LLM       | transcription + reply pipeline        |
+| `voice-to-voice` | VAD + STT + LLM + TTS | full turn latency, first-audio time   |
 
 ## Quick start
 
@@ -45,13 +45,13 @@ Each run appends to `runs/<timestamp>.jsonl` and emits `<timestamp>.summary.md`.
 
 ## Built-in plugins
 
-| slot | plugin | notes |
-| --- | --- | --- |
-| VAD | `sox-silence` | energy threshold baseline |
-| STT | `whisper-server` | whisper.cpp /inference endpoint |
-| LLM | `ollama` | any Ollama model via `config.model` |
-| TTS | `kokoro` | ONNX local neural TTS (~150 MB) |
-| TTS | `macos-say` | built-in macOS `say` |
+| slot | plugin           | notes                               |
+| ---- | ---------------- | ----------------------------------- |
+| VAD  | `sox-silence`    | energy threshold baseline           |
+| STT  | `whisper-server` | whisper.cpp /inference endpoint     |
+| LLM  | `ollama`         | any Ollama model via `config.model` |
+| TTS  | `kokoro`         | ONNX local neural TTS (~150 MB)     |
+| TTS  | `macos-say`      | built-in macOS `say`                |
 
 Adding a plugin is ~50–150 lines — implement the slot interface in `src/core/types.ts` and `registry.register(...)`. See `src/plugins/llm/ollama.ts` for the pattern.
 
@@ -105,4 +105,4 @@ before starting `ollama serve` to avoid Metal tensor kernel stalls on long-runni
 
 ## License
 
-MIT © Very Good Plugins
+MIT © Very Good Plugins 🧡
