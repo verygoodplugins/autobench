@@ -6,6 +6,7 @@ import { loadBuiltins, registry } from "./core/registry.js";
 import { loadMatrix, runMatrix } from "./core/runner.js";
 import { readRuns } from "./core/jsonl.js";
 import { toMarkdownSummary } from "./core/report.js";
+import { registerPlaygroundRoutes } from "./playground.js";
 
 type ServerOptions = {
   port: number;
@@ -17,7 +18,7 @@ export async function startServer(opts: ServerOptions): Promise<void> {
   const runsDir = resolve(opts.runsDir ?? "runs");
   const app = express();
   app.use(cors());
-  app.use(express.json({ limit: "5mb" }));
+  app.use(express.json({ limit: "25mb" }));
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true });
@@ -83,6 +84,8 @@ export async function startServer(opts: ServerOptions): Promise<void> {
       res.end();
     }
   });
+
+  registerPlaygroundRoutes(app);
 
   app.listen(opts.port, () => {
     console.log(`▸ autobench server listening on http://localhost:${opts.port}`);
