@@ -1,0 +1,14 @@
+# Smoke test — Claude LLM plugin via Anthropic Messages API.
+# Requires ANTHROPIC_API_KEY in env.
+mode: text-to-text
+runs: 2
+prompts:
+  - id: ping
+    text: "Reply with exactly: pong"
+pipelines:
+  - name: claude-haiku
+    llm:
+      name: claude
+      config:
+        model: claude-haiku-4-5
+        maxTokens: 16
