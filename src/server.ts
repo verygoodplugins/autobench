@@ -18,7 +18,11 @@ export async function startServer(opts: ServerOptions): Promise<void> {
   const runsDir = resolve(opts.runsDir ?? "runs");
   const app = express();
   app.use(cors());
-  app.use(express.json());
+  const defaultJsonParser = express.json();
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/playground")) return next();
+    defaultJsonParser(req, res, next);
+  });
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true });
