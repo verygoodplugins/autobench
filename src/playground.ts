@@ -1,4 +1,4 @@
-import type { Express, Response } from "express";
+import express, { type Express, type Response } from "express";
 import { PluginCache } from "./core/plugin-cache.js";
 import type { LlmMessage, SlotKind } from "./core/types.js";
 
@@ -88,8 +88,10 @@ function sseEvent(res: Response, event: string, data: unknown): void {
 
 export function registerPlaygroundRoutes(app: Express): void {
   const cache = new PluginCache();
+  const router = express.Router();
+  router.use(express.json({ limit: "25mb" }));
 
-  app.post("/playground/chat/stream", async (req, res) => {
+  router.post("/chat/stream", async (req, res) => {
     const body = req.body as ChatBody | undefined;
     if (!body?.llm?.name || !Array.isArray(body.messages) || !body.messages.length) {
       res.status(400).json({ error: "expected { llm: { name }, messages: [...] }" });
@@ -137,7 +139,7 @@ export function registerPlaygroundRoutes(app: Express): void {
     }
   });
 
-  app.post("/playground/voice/turn", async (req, res) => {
+  router.post("/voice/turn", async (req, res) => {
     const body = req.body as VoiceBody | undefined;
     if (!body?.stt?.name || !body?.llm?.name || !body?.audio) {
       res.status(400).json({ error: "expected { stt, llm, audio, tts? }" });
@@ -205,8 +207,8 @@ export function registerPlaygroundRoutes(app: Express): void {
       });
 
       if (closed) return;
-      if (body.tts && fullText.trim() && ttsCfg) {
-        const tts = await cache.get("tts", body.tts.name, ttsCfg);
+      if (body.tts && fullText.trim()) {
+        const tts = await cache.get("tts", body.tts.name, ttsCfg!);
         const ttsStart = performance.now();
         const ttsResult = await tts.synthesize(fullText);
         const ttsMs = performance.now() - ttsStart;
@@ -225,4 +227,6 @@ export function registerPlaygroundRoutes(app: Express): void {
       res.end();
     }
   });
+
+  app.use("/playground", router);
 }

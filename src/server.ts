@@ -18,7 +18,6 @@ export async function startServer(opts: ServerOptions): Promise<void> {
   const runsDir = resolve(opts.runsDir ?? "runs");
   const app = express();
   app.use(cors());
-  app.use("/playground", express.json({ limit: "25mb" }));
   app.use(express.json());
 
   app.get("/health", (_req, res) => {
