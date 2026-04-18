@@ -21,6 +21,7 @@
     "serve": "node --enable-source-maps dist/cli/serve.js",
     "dashboard:dev": "npm --prefix dashboard run dev",
     "dashboard:build": "npm --prefix dashboard run build",
+    "dev:full": "npm run build && concurrently -n server,ui -c cyan,magenta -k \"npm run serve\" \"npm run dashboard:dev\"",
     "clean": "rm -rf dist",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -63,6 +64,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^22.0.0",
+    "concurrently": "^9.2.1",
     "typescript": "^5.5.0"
   },
   "workspaces": [
