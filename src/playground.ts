@@ -207,8 +207,8 @@ export function registerPlaygroundRoutes(app: Express): void {
       });
 
       if (closed) return;
-      if (body.tts && fullText.trim()) {
-        const tts = await cache.get("tts", body.tts.name, ttsCfg!);
+      if (body.tts && ttsCfg && fullText.trim()) {
+        const tts = await cache.get("tts", body.tts.name, ttsCfg);
         const ttsStart = performance.now();
         const ttsResult = await tts.synthesize(fullText);
         const ttsMs = performance.now() - ttsStart;
