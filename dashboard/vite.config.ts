@@ -13,6 +13,7 @@ export default defineConfig({
       "/health": API_TARGET,
       "/run": API_TARGET,
       "/playground": API_TARGET,
+      "/ollama": API_TARGET,
     },
   },
 });

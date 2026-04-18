@@ -28,6 +28,24 @@ export async function startServer(opts: ServerOptions): Promise<void> {
     res.json(registry.describe());
   });
 
+  app.get("/ollama/models", async (_req, res) => {
+    try {
+      const baseUrl = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
+      const r = await fetch(`${baseUrl}/api/tags`);
+      if (!r.ok) {
+        res.status(502).json({ error: `ollama ${r.status}` });
+        return;
+      }
+      const data = (await r.json()) as { models?: { name: string }[] };
+      const models = (data.models ?? [])
+        .map((m) => m.name)
+        .sort((a, b) => a.localeCompare(b));
+      res.json({ models });
+    } catch (e) {
+      res.status(502).json({ error: (e as Error).message });
+    }
+  });
+
   app.get("/runs", async (_req, res) => {
     try {
       const files = (await readdir(runsDir))

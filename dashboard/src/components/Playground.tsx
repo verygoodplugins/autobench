@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChatPanel } from "./playground/ChatPanel";
 import { VoicePanel } from "./playground/VoicePanel";
+import { DEFAULT_PIPELINE, type PipelineConfig } from "../lib/pipeline";
 
 type Registry = { vad: string[]; stt: string[]; llm: string[]; tts: string[] };
 
@@ -10,6 +11,7 @@ export function Playground() {
   const [mode, setMode] = useState<Mode>("chat");
   const [registry, setRegistry] = useState<Registry | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pipeline, setPipeline] = useState<PipelineConfig>(DEFAULT_PIPELINE);
 
   useEffect(() => {
     fetch("/plugins")
@@ -35,8 +37,12 @@ export function Playground() {
         </button>
         {error && <span className="muted">registry: {error}</span>}
       </div>
-      {mode === "chat" && <ChatPanel registry={registry} />}
-      {mode === "voice" && <VoicePanel registry={registry} />}
+      {mode === "chat" && (
+        <ChatPanel config={pipeline} onConfigChange={setPipeline} registry={registry} />
+      )}
+      {mode === "voice" && (
+        <VoicePanel config={pipeline} onConfigChange={setPipeline} registry={registry} />
+      )}
     </div>
   );
 }

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { postSse } from "../../lib/sse";
+import type { PipelineConfig } from "../../lib/pipeline";
+import { buildLlmSlot } from "../../lib/pipeline";
+import { PipelineEditor } from "./PipelineEditor";
 
 type Registry = { vad: string[]; stt: string[]; llm: string[]; tts: string[] };
-
 type Message = { role: "system" | "user" | "assistant"; content: string };
 
 type Metrics = {
@@ -13,17 +15,13 @@ type Metrics = {
   tps?: number;
 };
 
-const MODEL_DEFAULTS: Record<string, string> = {
-  ollama: "qwen2.5-coder:32b",
-  claude: "claude-haiku-4-5",
+type Props = {
+  config: PipelineConfig;
+  onConfigChange: (next: PipelineConfig) => void;
+  registry: Registry | null;
 };
 
-export function ChatPanel({ registry }: { registry: Registry | null }) {
-  const [llmName, setLlmName] = useState<string>("ollama");
-  const [model, setModel] = useState<string>("");
-  const [temperature, setTemperature] = useState<string>("0.7");
-  const [maxTokens, setMaxTokens] = useState<string>("512");
-  const [system, setSystem] = useState<string>("");
+export function ChatPanel({ config, onConfigChange, registry }: Props) {
   const [input, setInput] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState<string>("");
@@ -32,10 +30,6 @@ export function ChatPanel({ registry }: { registry: Registry | null }) {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const logRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setModel(MODEL_DEFAULTS[llmName] ?? "");
-  }, [llmName]);
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
@@ -47,8 +41,8 @@ export function ChatPanel({ registry }: { registry: Registry | null }) {
     setMetrics({});
 
     const userMsg: Message = { role: "user", content: input.trim() };
-    const history: Message[] = system.trim()
-      ? [{ role: "system", content: system.trim() }, ...messages, userMsg]
+    const history: Message[] = config.system.trim()
+      ? [{ role: "system", content: config.system.trim() }, ...messages, userMsg]
       : [...messages, userMsg];
 
     setMessages((m) => [...m, userMsg]);
@@ -61,28 +55,9 @@ export function ChatPanel({ registry }: { registry: Registry | null }) {
 
     try {
       let acc = "";
-      const num = (s: string) => {
-        const n = Number(s);
-        return Number.isFinite(n) ? n : undefined;
-      };
-      const body = {
-        llm: {
-          name: llmName,
-          config: {
-            model,
-            ...(llmName === "ollama"
-              ? { temperature: num(temperature), numPredict: num(maxTokens) }
-              : { temperature: num(temperature), maxTokens: num(maxTokens) }),
-          },
-        },
-        messages: history,
-      };
+      const body = { llm: buildLlmSlot(config.llm), messages: history };
 
-      for await (const evt of postSse(
-        "/playground/chat/stream",
-        body,
-        controller.signal
-      )) {
+      for await (const evt of postSse("/playground/chat/stream", body, controller.signal)) {
         if (evt.event === "token") {
           const data = evt.data as { text: string; timings?: Record<string, number> };
           acc += data.text;
@@ -142,62 +117,15 @@ export function ChatPanel({ registry }: { registry: Registry | null }) {
     setError(null);
   }
 
-  const llmOptions = registry?.llm ?? ["ollama", "claude"];
-
   return (
     <div className="chat-panel">
-      <div className="row">
-        <label>
-          llm&nbsp;
-          <select
-            value={llmName}
-            onChange={(e) => setLlmName(e.target.value)}
-            disabled={busy}
-          >
-            {llmOptions.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          model&nbsp;
-          <input
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            disabled={busy}
-            style={{ width: "16rem" }}
-          />
-        </label>
-        <label>
-          temp&nbsp;
-          <input
-            value={temperature}
-            onChange={(e) => setTemperature(e.target.value)}
-            disabled={busy}
-            style={{ width: "3.5rem" }}
-          />
-        </label>
-        <label>
-          max tokens&nbsp;
-          <input
-            value={maxTokens}
-            onChange={(e) => setMaxTokens(e.target.value)}
-            disabled={busy}
-            style={{ width: "4.5rem" }}
-          />
-        </label>
-        <button onClick={reset} disabled={busy || messages.length === 0}>
-          reset
-        </button>
-      </div>
+      <PipelineEditor config={config} onChange={onConfigChange} registry={registry} mode="chat" disabled={busy} />
 
       <details className="system-prompt">
-        <summary>system prompt (optional)</summary>
+        <summary>system prompt {config.system.trim() ? "(set)" : "(optional)"}</summary>
         <textarea
-          value={system}
-          onChange={(e) => setSystem(e.target.value)}
+          value={config.system}
+          onChange={(e) => onConfigChange({ ...config, system: e.target.value })}
           disabled={busy}
           rows={3}
           placeholder="you are a helpful assistant..."
@@ -223,6 +151,9 @@ export function ChatPanel({ registry }: { registry: Registry | null }) {
           total:&nbsp;
           <b>{metrics.totalMs != null ? `${metrics.totalMs.toFixed(0)}ms` : "—"}</b>
         </span>
+        <button onClick={reset} disabled={busy || messages.length === 0} style={{ marginLeft: "auto" }}>
+          reset
+        </button>
       </div>
 
       <div className="chat-log" ref={logRef}>
@@ -262,7 +193,7 @@ export function ChatPanel({ registry }: { registry: Registry | null }) {
         {busy ? (
           <button onClick={stop}>stop</button>
         ) : (
-          <button onClick={send} disabled={!input.trim() || !model}>
+          <button onClick={send} disabled={!input.trim() || !config.llm.model}>
             send
           </button>
         )}

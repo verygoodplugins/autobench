@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { postSse } from "../../lib/sse";
 import { base64WavToObjectUrl, startRecorder, type Recorder } from "../../lib/audio";
+import type { PipelineConfig } from "../../lib/pipeline";
+import { buildLlmSlot } from "../../lib/pipeline";
+import { PipelineEditor } from "./PipelineEditor";
 
 type Registry = { vad: string[]; stt: string[]; llm: string[]; tts: string[] };
 
@@ -17,17 +20,13 @@ type Turn = {
   error?: string;
 };
 
-const MODEL_DEFAULTS: Record<string, string> = {
-  ollama: "qwen2.5-coder:32b",
-  claude: "claude-haiku-4-5",
+type Props = {
+  config: PipelineConfig;
+  onConfigChange: (next: PipelineConfig) => void;
+  registry: Registry | null;
 };
 
-export function VoicePanel({ registry }: { registry: Registry | null }) {
-  const [sttName, setSttName] = useState<string>("parakeet");
-  const [llmName, setLlmName] = useState<string>("ollama");
-  const [model, setModel] = useState<string>(MODEL_DEFAULTS.ollama!);
-  const [ttsName, setTtsName] = useState<string>("kokoro");
-  const [ttsEnabled, setTtsEnabled] = useState<boolean>(true);
+export function VoicePanel({ config, onConfigChange, registry }: Props) {
   const [recording, setRecording] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -41,10 +40,6 @@ export function VoicePanel({ registry }: { registry: Registry | null }) {
       audioUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
-
-  useEffect(() => {
-    setModel(MODEL_DEFAULTS[llmName] ?? "");
-  }, [llmName]);
 
   async function start() {
     if (recording || busy) return;
@@ -90,20 +85,13 @@ export function VoicePanel({ registry }: { registry: Registry | null }) {
 
     try {
       const body: Record<string, unknown> = {
-        stt: { name: sttName },
-        llm: {
-          name: llmName,
-          config: {
-            model,
-            ...(llmName === "ollama"
-              ? { numPredict: 256 }
-              : { maxTokens: 256 }),
-          },
-        },
+        stt: { name: config.stt.name },
+        llm: buildLlmSlot(config.llm),
         audio: wavBase64,
         audioFormat: "wav",
       };
-      if (ttsEnabled) body.tts = { name: ttsName };
+      if (config.tts.enabled) body.tts = { name: config.tts.name };
+      if (config.system.trim()) body.system = config.system.trim();
 
       for await (const evt of postSse("/playground/voice/turn", body, controller.signal)) {
         if (evt.event === "transcript") {
@@ -173,46 +161,15 @@ export function VoicePanel({ registry }: { registry: Registry | null }) {
     setGlobalError(null);
   }
 
-  const sttOptions = (registry?.stt ?? ["parakeet", "whisper-server"]).filter(
-    (n) => n === "parakeet" || n === "whisper-server"
-  );
-  const llmOptions = registry?.llm ?? ["ollama", "claude"];
-  const ttsOptions = (registry?.tts ?? ["kokoro", "macos-say", "piper"]).filter(
-    (n) => n === "kokoro" || n === "macos-say" || n === "piper"
-  );
-
   return (
     <div className="chat-panel">
-      <div className="row">
-        <label>
-          stt&nbsp;
-          <select value={sttName} onChange={(e) => setSttName(e.target.value)} disabled={busy || recording}>
-            {sttOptions.map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </label>
-        <label>
-          llm&nbsp;
-          <select value={llmName} onChange={(e) => setLlmName(e.target.value)} disabled={busy || recording}>
-            {llmOptions.map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </label>
-        <label>
-          model&nbsp;
-          <input value={model} onChange={(e) => setModel(e.target.value)} disabled={busy || recording} style={{ width: "14rem" }} />
-        </label>
-        <label>
-          <input type="checkbox" checked={ttsEnabled} onChange={(e) => setTtsEnabled(e.target.checked)} disabled={busy || recording} />
-          &nbsp;tts
-        </label>
-        <label>
-          <select value={ttsName} onChange={(e) => setTtsName(e.target.value)} disabled={busy || recording || !ttsEnabled}>
-            {ttsOptions.map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </label>
-        <button onClick={reset} disabled={busy || recording || turns.length === 0}>
-          reset
-        </button>
-      </div>
+      <PipelineEditor
+        config={config}
+        onChange={onConfigChange}
+        registry={registry}
+        mode="voice"
+        disabled={busy || recording}
+      />
 
       <div className="ptt-row">
         {!recording && !busy && (
@@ -235,6 +192,9 @@ export function VoicePanel({ registry }: { registry: Registry | null }) {
             <button onClick={cancel}>abort</button>
           </>
         )}
+        <button onClick={reset} disabled={busy || recording || turns.length === 0} style={{ marginLeft: "auto" }}>
+          reset
+        </button>
       </div>
 
       {globalError && <div className="chat-error">error: {globalError}</div>}
@@ -242,7 +202,7 @@ export function VoicePanel({ registry }: { registry: Registry | null }) {
       <div className="chat-log">
         {turns.length === 0 && (
           <div className="muted" style={{ fontSize: "0.85rem" }}>
-            click "start mic", speak, then "send". first turn downloads the TTS model (~10s).
+            click "start mic", speak, then "send". tts = macos-say avoids kokoro's current ONNX error.
           </div>
         )}
         {turns.map((t) => (

@@ -51,8 +51,11 @@ nav.tabs button.tab-active, .subtabs button.tab-active {
 
 .playground { display: grid; gap: 0.75rem; }
 .chat-panel { display: grid; gap: 0.75rem; }
-.system-prompt summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; padding: 0.25rem 0; }
+.system-prompt summary, .pipeline-advanced summary {
+  cursor: pointer; color: var(--muted); font-size: 0.8rem; padding: 0.2rem 0;
+}
 .system-prompt textarea { margin-top: 0.4rem; }
+.pipeline-editor { display: grid; gap: 0.5rem; }
 
 .metrics-row {
   display: flex; gap: 1.25rem; padding: 0.5rem 0.75rem;
