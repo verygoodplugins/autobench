@@ -36,8 +36,11 @@ node bin/autobench.js list
 # Run a text-to-text matrix (no voice hardware needed)
 node bin/autobench.js run configs/m5-max.yaml
 
-# Serve the React dashboard
-node bin/autobench.js serve        # backend on :8782
+# Serve the React dashboard + interactive playground (server + UI in one command)
+npm run dev:full                    # backend on :8782, frontend on :5173
+
+# Or run the two halves separately:
+npm run serve                       # backend on :8782
 npm run dashboard:dev               # frontend on :5173
 ```
 

@@ -59,12 +59,14 @@ src/
 │   ├── hardware.ts    # sampleHardware() — darwin memory_pressure + RSS
 │   └── report.ts      # toMarkdownSummary(records) — groups by pipeline
 ├── plugins/
-│   ├── vad/sox-silence.ts
-│   ├── stt/whisper-server.ts
-│   ├── llm/ollama.ts
-│   └── tts/{kokoro,macos-say}.ts
+│   ├── vad/{sox-silence,silero}.ts
+│   ├── stt/{whisper-server,parakeet}.ts
+│   ├── llm/{ollama,claude}.ts
+│   └── tts/{kokoro,macos-say,piper}.ts
 ├── cli/{run,serve,list}.ts
 ├── server.ts          # Express + SSE
+├── playground.ts      # /playground/chat/stream + /playground/voice/turn
+├── core/plugin-cache.ts  # shared PluginCache (runner + playground)
 └── index.ts           # public exports
 
 bin/autobench.js       # dispatcher to dist/cli/*
@@ -145,25 +147,44 @@ See `.env.example`. Key variables:
 - `AUTOBENCH_PORT` — server port (default 8782)
 - `OLLAMA_BASE_URL` — default `http://localhost:11434`
 - `WHISPER_SERVER_URL` — default `http://localhost:8178`
+- `ANTHROPIC_API_KEY` — required by `llm/claude`; falls through to `config.apiKey` if unset
+- Parakeet STT defaults to `http://localhost:8179` — autohub's `parakeet-server` defaults to `:8178`, so start it with `PARAKEET_PORT=8179` (or override via the plugin's `serverUrl` config) to avoid collision with whisper-server. For the playground endpoint, set `PARAKEET_SERVER_URL` on the serve process (clients can't override it — see allowlist)
+- `PIPER_MODEL`, `PIPER_BINARY`, `PIPER_MODEL_CONFIG` — required on the serve process to enable piper in the playground (filesystem paths are not client-configurable)
 - `GGML_METAL_TENSOR_DISABLE=1`, `GGML_METAL_BF16_DISABLE=1` — set on ollama serve for M5 Max stability
+
+## Playground (live pipeline UI)
+
+Additive to the existing runs review. Two Express endpoints and a React tab:
+
+- `POST /playground/chat/stream` — JSON `{ llm: { name, config }, messages, maxTokens?, temperature? }`. SSE events: `ready`, `token`, `done`, `error`. Token events carry a running `{ ttftMs, totalMs }`. The `done` event's metadata includes `promptTokens`, `completionTokens`, and `evalDurationMs` when the LLM reports them.
+- `POST /playground/voice/turn` — JSON `{ stt, llm, tts?, audio (base64), audioFormat? }`. One-shot push-to-talk turn. SSE events: `stt-start` → `transcript` → `token` (repeated, streaming) → `llm-done` → `audio` (base64 WAV/mp3) → `done`. TTS plugins are batch, so audio arrives as a single event.
+
+**Config allowlist.** Clients can only override safe keys per slot/plugin (model, temperature, maxTokens, voice, etc.). Secrets and paths (`apiKey`, `baseUrl`, `serverUrl`, `binary`, `model` for piper) are stripped and re-injected server-side from environment variables. An unknown slot/plugin is refused with 400. See `src/playground.ts::CONFIG_ALLOWLIST`.
+
+**Plugin cache.** `src/playground.ts` holds its own `PluginCache` (shared class with the runner via `core/plugin-cache.ts`) for the server process lifetime. Repeated chat turns against the same model hit a warm plugin instance and skip cold-start.
+
+**Dashboard.** `dashboard/src/components/Playground.tsx` with `chat` and `voice` sub-tabs. Chat panel streams tokens with a blinking-cursor tail and live TTFT/tok-s/token-count readout. Voice panel uses an inline AudioWorklet processor to capture mic @ 16 kHz mono, encodes to PCM16 WAV client-side, POSTs, and plays the returned audio via an `<audio>` element. Reset clears history. `Stop` aborts in-flight fetches via AbortController.
+
+**SSE client quirk.** `EventSource` can't POST, so `dashboard/src/lib/sse.ts` implements POST + ReadableStream + manual `event:`/`data:` parsing.
+
+## Recently Landed
+
+- **Interactive playground UI** — `feat/playground-ui` (2026-04-18). Chat streaming verified live in Chrome against ollama (qwen2.5-coder:32b, TTFT 342ms, 26.2 tok/s). Voice turn verified server-side via synthesized input (parakeet + ollama + macos-say, STT 75ms, LLM TTFT 109ms warm). Also fixed a real STT plugin bug: `form-data` npm package produced multipart parakeet-mlx's FastAPI parser rejected; switched both parakeet + whisper-server to native `FormData`+`Blob`, which also drops the `form-data` dep. Browser mic capture path is unverified (no way to grant native permission headlessly); user must run `npm run serve` + `npm run dashboard:dev` and speak into the mic for the last mile.
+
+- **Second plugin per slot** — merged as PR #1, `feat/second-plugin-per-slot` → `main` (2026-04-17). Commits `f1631cd` (claude LLM), `9114144` (silero VAD), `a165133` (parakeet STT), `28d1a20` (piper TTS + demo matrix + doc update), `855cd71` (piper flag note), `b529ca8` (merge polish: opts.stream===false in claude, onnxruntime-node pinned to 1.21.0, YAML comment fix). `claude` verified end-to-end (~800ms TTFT on haiku-4-5); parakeet verified via playground turn (2026-04-18); silero/piper still dry-run only, pending fixtures/ audio.
 
 ## Open Follow-ups
 
-Tracked here until work resumes:
-
-1. **Second plugin per slot** — **landed** on `feat/second-plugin-per-slot` (2026-04-17). All four registered + dry-run verified:
-   - VAD: `silero` via `@ricky0123/vad-node` (ONNX, `NonRealTimeVAD.run()` batch API)
-   - STT: `parakeet` → autohub parakeet-server (defaults to :8179 to avoid whisper-server's :8178)
-   - LLM: `claude` via `@anthropic-ai/sdk` (streaming Messages, end-to-end verified with claude-haiku-4-5 at ~800ms TTFT / ~70 tok/s)
-   - TTS: `piper` CLI (batch mode, firstAudioMs == totalMs; requires `piper` binary + voice `.onnx`)
-   - Follow-on: run a voice-to-voice matrix once fixtures/ audio + a parakeet-server + piper voice are available end-to-end.
-2. **Decouple hardware sampling from "ollama"** — make the process name a field on LLM plugin metadata so non-Ollama LLMs still report RSS. `src/core/runner.ts:222`.
-3. **Wire SSE live-view in the dashboard** — server already emits `/run/stream` events; the UI currently polls `/runs` only.
-4. **Add fixtures/ audio** — short WAV clips + reference transcripts so `voice-to-voice.yaml` runs without manual setup. Include a `fixtures/README.md` with provenance.
-5. **WER computation** — `core/metrics.ts::wer` exists but `runOnce` doesn't invoke it. Compute when `prompt.reference` is set, write to `metrics.wer`.
-6. **`npm run bench` smoke in CI** — a headless matrix + text-only LLM mock plugin for GitHub Actions.
-7. **Publish**: `gh repo create verygoodplugins/autobench --public --push`, then `npm publish --access public` after CI is green.
-8. **README badge row** (npm, CI, license) once 6–7 land.
+1. **Kokoro ONNX runtime error** — `kokoro-js` throws `Preferred output locations must have the same size as output names` on `synthesize()` with onnxruntime-node 1.21.0 in this repo. Surfaced when wiring the voice playground; unrelated to playground code. Needs triage against kokoro-js versions or onnxruntime-node config. Workaround: use `macos-say` or `piper` in Playground and benchmark matrices for now.
+2. **Browser mic capture unverified** — voice playground's AudioWorklet → PCM16 → WAV → POST path wasn't exercised in this session (can't grant native mic permission headlessly). Have the user complete one real mic turn and report any encoder / sample-rate / playback quirks.
+3. **VAD-gated / streaming voice turns** — current voice endpoint is one-shot push-to-talk. Natural next step: stream mic frames via WebSocket, gate utterances with a streaming Silero wrapper (exposing `NonRealTimeVAD.run()` as a generator), feel true end-of-turn detection.
+4. **Decouple hardware sampling from "ollama"** — make the process name a field on LLM plugin metadata so non-Ollama LLMs still report RSS. `src/core/runner.ts:213`.
+5. **Wire SSE live-view in the dashboard Runs tab** — server already emits `/run/stream` events; the UI currently polls `/runs` only. Would share the `lib/sse.ts` helper the playground already uses.
+6. **Add fixtures/ audio** — short WAV clips + reference transcripts so `voice-to-voice.yaml` runs without manual setup. Include a `fixtures/README.md` with provenance. Unblocks end-to-end verification of silero + piper.
+7. **WER computation** — `core/metrics.ts::wer` exists but `runOnce` doesn't invoke it. Compute when `prompt.reference` is set, write to `metrics.wer`.
+8. **`npm run bench` smoke in CI** — a headless matrix + text-only LLM mock plugin for GitHub Actions.
+9. **Publish**: `npm publish --access public` once CI is green.
+10. **README badge row** (npm, CI, license) once 8–9 land.
 
 ## Testing the end-to-end path
 

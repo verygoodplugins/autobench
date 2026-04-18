@@ -1,17 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { parse as parseYaml } from "yaml";
-import { loadBuiltins, registry } from "./registry.js";
+import { loadBuiltins } from "./registry.js";
 import { JsonlWriter } from "./jsonl.js";
 import { sampleHardware } from "./hardware.js";
+import { PluginCache } from "./plugin-cache.js";
 import type {
-  AnyPlugin,
   LlmMessage,
   LlmPlugin,
   RunMode,
   RunRecord,
-  SlotKind,
-  SlotToPlugin,
   SttPlugin,
   TtsPlugin,
 } from "./types.js";
@@ -47,44 +45,6 @@ type RunEvent =
   | { type: "record"; record: RunRecord }
   | { type: "error"; pipelineIndex: number; caseId: string; message: string }
   | { type: "done"; totalRuns: number };
-
-class PluginCache {
-  private instances = new Map<string, AnyPlugin>();
-
-  private key(kind: SlotKind, name: string, config: Record<string, unknown> = {}): string {
-    return `${kind}:${name}:${stableStringify(config)}`;
-  }
-
-  async get<K extends SlotKind>(
-    kind: K,
-    name: string,
-    config: Record<string, unknown> = {}
-  ): Promise<SlotToPlugin<K>> {
-    const key = this.key(kind, name, config);
-    const cached = this.instances.get(key);
-    if (cached) return cached as SlotToPlugin<K>;
-    const instance = await registry.create(kind, name, config);
-    this.instances.set(key, instance);
-    return instance;
-  }
-
-  async teardownAll(): Promise<void> {
-    for (const p of this.instances.values()) {
-      await p.teardown?.().catch(() => undefined);
-    }
-    this.instances.clear();
-  }
-}
-
-function stableStringify(obj: unknown): string {
-  if (obj === null || typeof obj !== "object") return JSON.stringify(obj);
-  if (Array.isArray(obj)) return `[${obj.map(stableStringify).join(",")}]`;
-  const keys = Object.keys(obj as Record<string, unknown>).sort();
-  const entries = keys.map(
-    (k) => `${JSON.stringify(k)}:${stableStringify((obj as Record<string, unknown>)[k])}`
-  );
-  return `{${entries.join(",")}}`;
-}
 
 export async function loadMatrix(path: string): Promise<MatrixConfig> {
   const raw = await readFile(path, "utf8");

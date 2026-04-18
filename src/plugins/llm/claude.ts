@@ -74,9 +74,15 @@ class ClaudePlugin implements LlmPlugin<ClaudeConfig> {
     if (this.thinking) body.thinking = { type: "adaptive" };
 
     if (opts.stream === false) {
-      const message = await this.client.messages.create(
-        body as Parameters<typeof this.client.messages.create>[0]
-      );
+      type NonStreamMessage = {
+        content: Array<{ type: string; text?: string }>;
+        usage: { input_tokens: number; output_tokens: number };
+        stop_reason: string | null;
+      };
+      const message = (await this.client.messages.create({
+        ...(body as Record<string, unknown>),
+        stream: false,
+      } as Parameters<typeof this.client.messages.create>[0])) as unknown as NonStreamMessage;
       const totalMs = performance.now() - started;
       const text = (message.content as Array<{ type: string; text?: string }>)
         .filter((b) => b.type === "text")

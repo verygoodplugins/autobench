@@ -12,6 +12,8 @@ export default defineConfig({
       "/plugins": API_TARGET,
       "/health": API_TARGET,
       "/run": API_TARGET,
+      "/playground": API_TARGET,
+      "/ollama": API_TARGET,
     },
   },
 });

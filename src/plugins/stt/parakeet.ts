@@ -1,4 +1,3 @@
-import FormData from "form-data";
 import { registry } from "../../core/registry.js";
 import type { SttPlugin } from "../../core/types.js";
 
@@ -51,19 +50,33 @@ class ParakeetPlugin implements SttPlugin<ParakeetConfig> {
     metadata?: Record<string, unknown>;
   }> {
     const started = performance.now();
+    const mime = format === "pcm16" ? "audio/wav" : `audio/${format}`;
     const form = new FormData();
-    form.append("file", audio, {
-      filename: `audio.${format}`,
-      contentType: `audio/${format === "pcm16" ? "wav" : format}`,
-    });
+    form.append(
+      "file",
+      new Blob([new Uint8Array(audio)], { type: mime }),
+      `audio.${format}`
+    );
     form.append("response_format", "json");
     form.append("language", this.language);
 
-    const res = await fetch(`${this.serverUrl}/inference`, {
-      method: "POST",
-      body: form as unknown as BodyInit,
-      headers: form.getHeaders(),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${this.serverUrl}/inference`, {
+        method: "POST",
+        body: form,
+      });
+    } catch (e) {
+      const cause = (e as { cause?: { code?: string } }).cause;
+      if (cause?.code === "ECONNREFUSED") {
+        throw new Error(
+          `parakeet-server not reachable at ${this.serverUrl}. Start it (default :8179) or set PARAKEET_SERVER_URL in the autobench server env.`
+        );
+      }
+      throw new Error(
+        `parakeet-server fetch failed at ${this.serverUrl}: ${(e as Error).message}`
+      );
+    }
     if (!res.ok) {
       const body = await res.text();
       throw new Error(`parakeet-server ${res.status}: ${body}`);
