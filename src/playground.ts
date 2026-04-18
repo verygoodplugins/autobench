@@ -96,6 +96,14 @@ export function registerPlaygroundRoutes(app: Express): void {
       return;
     }
 
+    let cfg: Record<string, unknown>;
+    try {
+      cfg = sanitizeConfig("llm", body.llm.name, body.llm.config);
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+      return;
+    }
+
     sseHeaders(res);
 
     let closed = false;
@@ -104,7 +112,6 @@ export function registerPlaygroundRoutes(app: Express): void {
     });
 
     try {
-      const cfg = sanitizeConfig("llm", body.llm.name, body.llm.config);
       const plugin = await cache.get("llm", body.llm.name, cfg);
       sseEvent(res, "ready", { plugin: body.llm.name });
 
@@ -137,6 +144,18 @@ export function registerPlaygroundRoutes(app: Express): void {
       return;
     }
 
+    let sttCfg: Record<string, unknown>;
+    let llmCfg: Record<string, unknown>;
+    let ttsCfg: Record<string, unknown> | undefined;
+    try {
+      sttCfg = sanitizeConfig("stt", body.stt.name, body.stt.config);
+      llmCfg = sanitizeConfig("llm", body.llm.name, body.llm.config);
+      if (body.tts) ttsCfg = sanitizeConfig("tts", body.tts.name, body.tts.config);
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+      return;
+    }
+
     sseHeaders(res);
     let closed = false;
     res.on("close", () => {
@@ -147,7 +166,6 @@ export function registerPlaygroundRoutes(app: Express): void {
       const audioBuf = Buffer.from(body.audio, "base64");
       const format = body.audioFormat ?? "wav";
 
-      const sttCfg = sanitizeConfig("stt", body.stt.name, body.stt.config);
       const stt = await cache.get("stt", body.stt.name, sttCfg);
       sseEvent(res, "stt-start", { plugin: body.stt.name });
       const sttStart = performance.now();
@@ -161,7 +179,6 @@ export function registerPlaygroundRoutes(app: Express): void {
         return;
       }
 
-      const llmCfg = sanitizeConfig("llm", body.llm.name, body.llm.config);
       const llm = await cache.get("llm", body.llm.name, llmCfg);
       const messages: LlmMessage[] = [];
       if (body.system) messages.push({ role: "system", content: body.system });
@@ -180,6 +197,7 @@ export function registerPlaygroundRoutes(app: Express): void {
           sseEvent(res, "token", { text: chunk.text, timings: chunk.timings });
         }
       }
+      if (closed) return;
       sseEvent(res, "llm-done", {
         text: fullText,
         timings: llmTimings,
@@ -187,8 +205,7 @@ export function registerPlaygroundRoutes(app: Express): void {
       });
 
       if (closed) return;
-      if (body.tts && fullText.trim()) {
-        const ttsCfg = sanitizeConfig("tts", body.tts.name, body.tts.config);
+      if (body.tts && fullText.trim() && ttsCfg) {
         const tts = await cache.get("tts", body.tts.name, ttsCfg);
         const ttsStart = performance.now();
         const ttsResult = await tts.synthesize(fullText);

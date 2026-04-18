@@ -34,7 +34,13 @@ export function VoicePanel({ registry }: { registry: Registry | null }) {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const recorderRef = useRef<Recorder | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const currentTurnId = useRef<string | null>(null);
+  const audioUrlsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    return () => {
+      audioUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, []);
 
   useEffect(() => {
     setModel(MODEL_DEFAULTS[llmName] ?? "");
@@ -59,7 +65,6 @@ export function VoicePanel({ registry }: { registry: Registry | null }) {
     recorderRef.current = null;
 
     const turnId = crypto.randomUUID();
-    currentTurnId.current = turnId;
     setTurns((t) => [...t, { id: turnId }]);
 
     let wavBase64: string;
@@ -130,6 +135,7 @@ export function VoicePanel({ registry }: { registry: Registry | null }) {
         } else if (evt.event === "audio") {
           const d = evt.data as { base64: string; format: string; ms: number };
           const url = base64WavToObjectUrl(d.base64, `audio/${d.format}`);
+          audioUrlsRef.current.push(url);
           patchTurn(turnId, { audioUrl: url, ttsMs: d.ms, audioFormat: d.format });
         } else if (evt.event === "error") {
           const d = evt.data as { message: string };
@@ -143,7 +149,6 @@ export function VoicePanel({ registry }: { registry: Registry | null }) {
     } finally {
       setBusy(false);
       abortRef.current = null;
-      currentTurnId.current = null;
     }
   }
 
@@ -162,6 +167,8 @@ export function VoicePanel({ registry }: { registry: Registry | null }) {
   }
 
   function reset() {
+    audioUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    audioUrlsRef.current = [];
     setTurns([]);
     setGlobalError(null);
   }
