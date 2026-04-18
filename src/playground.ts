@@ -123,13 +123,14 @@ export function registerPlaygroundRoutes(app: Express): void {
       });
       for await (const chunk of gen) {
         if (closed) break;
+        if (chunk.text) {
+          sseEvent(res, "token", { text: chunk.text, timings: chunk.timings });
+        }
         if (chunk.done) {
           sseEvent(res, "done", {
             timings: chunk.timings,
             metadata: chunk.metadata,
           });
-        } else if (chunk.text) {
-          sseEvent(res, "token", { text: chunk.text, timings: chunk.timings });
         }
       }
     } catch (e) {
@@ -149,7 +150,11 @@ export function registerPlaygroundRoutes(app: Express): void {
     let sttCfg: Record<string, unknown>;
     let llmCfg: Record<string, unknown>;
     let ttsCfg: Record<string, unknown> | undefined;
+    const format = body.audioFormat ?? "wav";
     try {
+      if (!["wav", "pcm16", "mp3"].includes(format)) {
+        throw new Error(`unsupported audioFormat: ${format}`);
+      }
       sttCfg = sanitizeConfig("stt", body.stt.name, body.stt.config);
       llmCfg = sanitizeConfig("llm", body.llm.name, body.llm.config);
       if (body.tts) ttsCfg = sanitizeConfig("tts", body.tts.name, body.tts.config);
@@ -166,7 +171,6 @@ export function registerPlaygroundRoutes(app: Express): void {
 
     try {
       const audioBuf = Buffer.from(body.audio, "base64");
-      const format = body.audioFormat ?? "wav";
 
       const stt = await cache.get("stt", body.stt.name, sttCfg);
       sseEvent(res, "stt-start", { plugin: body.stt.name });
@@ -191,12 +195,13 @@ export function registerPlaygroundRoutes(app: Express): void {
       let llmMeta: Record<string, unknown> | undefined;
       for await (const chunk of llm.generate(messages)) {
         if (closed) break;
+        if (chunk.text) {
+          fullText += chunk.text;
+          sseEvent(res, "token", { text: chunk.text, timings: chunk.timings });
+        }
         if (chunk.done) {
           llmTimings = chunk.timings;
           llmMeta = chunk.metadata;
-        } else if (chunk.text) {
-          fullText += chunk.text;
-          sseEvent(res, "token", { text: chunk.text, timings: chunk.timings });
         }
       }
       if (closed) return;

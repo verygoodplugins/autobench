@@ -80,9 +80,9 @@ export function ChatPanel({ config, onConfigChange, registry }: Props) {
           const ttftMs = data.timings?.ttftMs;
           const totalMs = data.timings?.totalMs;
           let tps: number | undefined;
-          if (completionTokens && evalDurationMs && evalDurationMs > 0) {
+          if (completionTokens != null && evalDurationMs != null && evalDurationMs > 0) {
             tps = completionTokens / (evalDurationMs / 1000);
-          } else if (completionTokens && totalMs && ttftMs !== undefined) {
+          } else if (completionTokens != null && totalMs != null && ttftMs != null) {
             const gen = totalMs - ttftMs;
             if (gen > 0) tps = completionTokens / (gen / 1000);
           }

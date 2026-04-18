@@ -43,6 +43,7 @@ export async function startRecorder(): Promise<Recorder> {
     totalSamples += data.length;
   };
   source.connect(node);
+  node.connect(ctx.destination);
   const startedAt = performance.now();
 
   function teardown() {

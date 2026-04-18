@@ -122,7 +122,13 @@ export function VoicePanel({ config, onConfigChange, registry }: Props) {
           });
         } else if (evt.event === "audio") {
           const d = evt.data as { base64: string; format: string; ms: number };
-          const url = base64WavToObjectUrl(d.base64, `audio/${d.format}`);
+          const mimeType =
+            d.format === "mp3"
+              ? "audio/mpeg"
+              : d.format === "wav"
+                ? "audio/wav"
+                : `audio/${d.format}`;
+          const url = base64WavToObjectUrl(d.base64, mimeType);
           audioUrlsRef.current.push(url);
           patchTurn(turnId, { audioUrl: url, ttsMs: d.ms, audioFormat: d.format });
         } else if (evt.event === "error") {
