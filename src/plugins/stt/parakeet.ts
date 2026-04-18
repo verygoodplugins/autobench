@@ -60,10 +60,23 @@ class ParakeetPlugin implements SttPlugin<ParakeetConfig> {
     form.append("response_format", "json");
     form.append("language", this.language);
 
-    const res = await fetch(`${this.serverUrl}/inference`, {
-      method: "POST",
-      body: form,
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${this.serverUrl}/inference`, {
+        method: "POST",
+        body: form,
+      });
+    } catch (e) {
+      const cause = (e as { cause?: { code?: string } }).cause;
+      if (cause?.code === "ECONNREFUSED") {
+        throw new Error(
+          `parakeet-server not reachable at ${this.serverUrl}. Start it (default :8179) or set PARAKEET_SERVER_URL in the autobench server env.`
+        );
+      }
+      throw new Error(
+        `parakeet-server fetch failed at ${this.serverUrl}: ${(e as Error).message}`
+      );
+    }
     if (!res.ok) {
       const body = await res.text();
       throw new Error(`parakeet-server ${res.status}: ${body}`);

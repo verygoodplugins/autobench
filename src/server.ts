@@ -112,5 +112,44 @@ export async function startServer(opts: ServerOptions): Promise<void> {
   app.listen(opts.port, () => {
     console.log(`▸ autobench server listening on http://localhost:${opts.port}`);
     console.log(`▸ runs directory: ${runsDir}`);
+    probeBackends().catch(() => undefined);
   });
+}
+
+async function probeBackends(): Promise<void> {
+  const backends = [
+    {
+      label: "ollama",
+      url: `${process.env.OLLAMA_BASE_URL ?? "http://localhost:11434"}/api/tags`,
+    },
+    {
+      label: "parakeet-server (STT)",
+      url: `${process.env.PARAKEET_SERVER_URL ?? "http://localhost:8179"}/health`,
+      hint: "set PARAKEET_SERVER_URL or start parakeet-server on :8179",
+    },
+    {
+      label: "whisper-server (STT)",
+      url: `${process.env.WHISPER_SERVER_URL ?? "http://localhost:8178"}/health`,
+      hint: "set WHISPER_SERVER_URL or start whisper-server on :8178",
+    },
+  ];
+  for (const b of backends) {
+    const ok = await reachable(b.url);
+    const status = ok ? "ok" : "NOT REACHABLE";
+    const hint = !ok && b.hint ? ` — ${b.hint}` : "";
+    console.log(`▸ ${b.label.padEnd(22)} ${b.url.padEnd(40)} ${status}${hint}`);
+  }
+}
+
+async function reachable(url: string, timeoutMs = 800): Promise<boolean> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal });
+    return r.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
 }
