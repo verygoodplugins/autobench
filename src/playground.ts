@@ -86,6 +86,41 @@ function sseEvent(res: Response, event: string, data: unknown): void {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
+// Sentence-buffer flush heuristic for streaming TTS. Mirrors the sibling
+// uncensored-voice-server's shouldFlushSegment: aggressive on the first
+// segment to minimize first-audio latency, smoother cadence afterwards.
+const FIRST_SEGMENT_MIN_CHARS = 32;
+const CONT_SEGMENT_MIN_CHARS = 60;
+const MAX_SEGMENT_CHARS = 240;
+const HARD_PUNCT_RE = /[.!?\n]/;
+
+function tryFlushSegment(
+  buf: string,
+  isFirst: boolean
+): { flush: string; rest: string } | null {
+  const minChars = isFirst ? FIRST_SEGMENT_MIN_CHARS : CONT_SEGMENT_MIN_CHARS;
+
+  const hardIdx = buf.search(HARD_PUNCT_RE);
+  if (hardIdx >= 0 && hardIdx + 1 >= minChars) {
+    const cut = hardIdx + 1;
+    return {
+      flush: buf.slice(0, cut).trim(),
+      rest: buf.slice(cut).trimStart(),
+    };
+  }
+
+  if (buf.length >= MAX_SEGMENT_CHARS) {
+    const spaceIdx = buf.lastIndexOf(" ", MAX_SEGMENT_CHARS);
+    const cut = spaceIdx >= minChars ? spaceIdx : MAX_SEGMENT_CHARS;
+    return {
+      flush: buf.slice(0, cut).trim(),
+      rest: buf.slice(cut).trimStart(),
+    };
+  }
+
+  return null;
+}
+
 export function registerPlaygroundRoutes(app: Express): void {
   const cache = new PluginCache();
   const router = express.Router();
@@ -190,14 +225,75 @@ export function registerPlaygroundRoutes(app: Express): void {
       if (body.system) messages.push({ role: "system", content: body.system });
       messages.push({ role: "user", content: sttResult.text });
 
+      // Streaming TTS pipeline: LLM tokens feed a sentence buffer, full
+      // sentences go to a TTS worker that synthesizes concurrently with
+      // further token generation. Each synthesized segment is emitted as
+      // its own `audio` SSE event so the client can start playback well
+      // before the full response arrives.
+      const doTts = Boolean(body.tts && ttsCfg);
+      const tts = doTts ? await cache.get("tts", body.tts!.name, ttsCfg!) : null;
+
+      type SegmentJob = { text: string; index: number };
+      const ttsQueue: SegmentJob[] = [];
+      let segmentIndex = 0;
+      let drainerPromise: Promise<void> | null = null;
+
+      function startDrainerIfIdle(): void {
+        if (drainerPromise || !tts) return;
+        drainerPromise = (async () => {
+          while (ttsQueue.length > 0 && !closed) {
+            const job = ttsQueue.shift()!;
+            try {
+              const t0 = performance.now();
+              const result = await tts.synthesize(job.text);
+              const ms = performance.now() - t0;
+              if (closed) return;
+              sseEvent(res, "audio", {
+                base64: result.audio.toString("base64"),
+                format: result.format,
+                ms,
+                timings: result.timings,
+                index: job.index,
+                text: job.text,
+              });
+            } catch (e) {
+              if (!closed) {
+                sseEvent(res, "tts-error", {
+                  message: (e as Error).message,
+                  text: job.text,
+                });
+              }
+            }
+          }
+          drainerPromise = null;
+        })();
+      }
+
+      function enqueueSegment(text: string): void {
+        const trimmed = text.trim();
+        if (!trimmed || !tts) return;
+        ttsQueue.push({ text: trimmed, index: segmentIndex++ });
+        startDrainerIfIdle();
+      }
+
       let fullText = "";
+      let buffer = "";
       let llmTimings: Record<string, number> | undefined;
       let llmMeta: Record<string, unknown> | undefined;
       for await (const chunk of llm.generate(messages)) {
         if (closed) break;
         if (chunk.text) {
           fullText += chunk.text;
+          buffer += chunk.text;
           sseEvent(res, "token", { text: chunk.text, timings: chunk.timings });
+          if (tts) {
+            while (true) {
+              const result = tryFlushSegment(buffer, segmentIndex === 0);
+              if (!result) break;
+              buffer = result.rest;
+              enqueueSegment(result.flush);
+            }
+          }
         }
         if (chunk.done) {
           llmTimings = chunk.timings;
@@ -211,21 +307,12 @@ export function registerPlaygroundRoutes(app: Express): void {
         metadata: llmMeta,
       });
 
-      if (closed) return;
-      if (body.tts && ttsCfg && fullText.trim()) {
-        const tts = await cache.get("tts", body.tts.name, ttsCfg);
-        const ttsStart = performance.now();
-        const ttsResult = await tts.synthesize(fullText);
-        const ttsMs = performance.now() - ttsStart;
-        sseEvent(res, "audio", {
-          base64: ttsResult.audio.toString("base64"),
-          format: ttsResult.format,
-          ms: ttsMs,
-          timings: ttsResult.timings,
-        });
+      if (tts) {
+        if (buffer.trim()) enqueueSegment(buffer);
+        if (drainerPromise) await drainerPromise;
       }
-
-      sseEvent(res, "done", { sttMs });
+      if (closed) return;
+      sseEvent(res, "done", { sttMs, segments: segmentIndex });
     } catch (e) {
       sseEvent(res, "error", { message: (e as Error).message });
     } finally {

@@ -92,6 +92,26 @@ nav.tabs button.tab-active, .subtabs button.tab-active {
 .ptt-btn:hover { background: #14181e; }
 .ptt-btn-stop { border-color: #ff6b6b; color: #ff6b6b; }
 
+.mode-toggle { display: inline-flex; border: 1px solid var(--accent); border-radius: 4px; overflow: hidden; }
+.mode-btn {
+  padding: 0.4rem 0.8rem; font-size: 0.85rem;
+  background: transparent; color: var(--accent); border: 0; cursor: pointer;
+}
+.mode-btn + .mode-btn { border-left: 1px solid var(--accent); }
+.mode-btn-active { background: var(--accent); color: #0f1216; }
+.mode-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.vad-pill {
+  padding: 0.2rem 0.6rem; font-size: 0.8rem; border-radius: 999px;
+  border: 1px solid #444; background: #14181e; color: #aaa;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.vad-pill-listening { border-color: #4a90e2; color: #4a90e2; }
+.vad-pill-speaking { border-color: #50c878; color: #50c878; animation: pulse 1.2s ease-in-out infinite; }
+.vad-pill-processing { border-color: #f0c040; color: #f0c040; }
+.vad-pill-playing { border-color: var(--accent); color: var(--accent); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
 .turn {
   display: grid; gap: 0.4rem; padding: 0.6rem 0.75rem;
   border: 1px solid var(--border); border-radius: 6px; background: #0b0d10;

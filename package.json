@@ -16,9 +16,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -w -p tsconfig.json",
-    "start": "node --enable-source-maps dist/server.js",
-    "bench": "node --enable-source-maps dist/cli/run.js",
-    "serve": "node --enable-source-maps dist/cli/serve.js",
+    "start": "node --env-file-if-exists=.env --enable-source-maps dist/server.js",
+    "bench": "node --env-file-if-exists=.env --enable-source-maps dist/cli/run.js",
+    "serve": "node --env-file-if-exists=.env --enable-source-maps dist/cli/serve.js",
     "dashboard:dev": "npm --prefix dashboard run dev",
     "dashboard:build": "npm --prefix dashboard run build",
     "dev:full": "npm run build && concurrently -n server,ui -c cyan,magenta -k \"npm run serve\" \"npm run dashboard:dev\"",

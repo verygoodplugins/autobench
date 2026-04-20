@@ -129,3 +129,59 @@ export function base64WavToObjectUrl(b64: string, mime = "audio/wav"): string {
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return URL.createObjectURL(new Blob([bytes], { type: mime }));
 }
+
+export type VadRecorderEvents = {
+  onSpeechStart: () => void;
+  onSpeechEnd: (wavBase64: string, durationMs: number) => void;
+  onMisfire?: () => void;
+  onError?: (err: Error) => void;
+};
+
+export type VadRecorderTunables = {
+  positiveSpeechThreshold?: number;
+  negativeSpeechThreshold?: number;
+  minSpeechFrames?: number;
+  redemptionFrames?: number;
+  preSpeechPadFrames?: number;
+};
+
+export type VadRecorder = {
+  start: () => void;
+  pause: () => void;
+  destroy: () => void;
+};
+
+export async function startVadRecorder(
+  events: VadRecorderEvents,
+  tunables: VadRecorderTunables = {}
+): Promise<VadRecorder> {
+  const { MicVAD } = await import("@ricky0123/vad-web");
+  const vad = await MicVAD.new({
+    baseAssetPath: "/vad/",
+    onnxWASMBasePath: "/vad/",
+    model: "v5",
+    positiveSpeechThreshold: tunables.positiveSpeechThreshold ?? 0.5,
+    negativeSpeechThreshold: tunables.negativeSpeechThreshold ?? 0.35,
+    minSpeechFrames: tunables.minSpeechFrames ?? 4,
+    redemptionFrames: tunables.redemptionFrames ?? 12,
+    preSpeechPadFrames: tunables.preSpeechPadFrames ?? 3,
+    onSpeechStart: events.onSpeechStart,
+    onVADMisfire: () => events.onMisfire?.(),
+    onSpeechEnd: async (audio: Float32Array) => {
+      try {
+        const wav = encodeWav16k(audio);
+        const wavBase64 = await blobToBase64(new Blob([wav]));
+        const durationMs = (audio.length / 16000) * 1000;
+        events.onSpeechEnd(wavBase64, durationMs);
+      } catch (e) {
+        events.onError?.(e as Error);
+      }
+    },
+  });
+  vad.start();
+  return {
+    start: () => vad.start(),
+    pause: () => vad.pause(),
+    destroy: () => vad.destroy(),
+  };
+}

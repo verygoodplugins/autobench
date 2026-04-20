@@ -11,3 +11,4 @@ runs/artifacts/
 dashboard/dist/
 dashboard/node_modules/
 dashboard/tsconfig.tsbuildinfo
+dashboard/public/vad/
