@@ -16,7 +16,11 @@ export type Recorder = {
   cancel: () => void;
 };
 
-export async function startRecorder(): Promise<Recorder> {
+export type RecorderOptions = {
+  onLevel?: (rms01: number) => void;
+};
+
+export async function startRecorder(opts: RecorderOptions = {}): Promise<Recorder> {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
       channelCount: 1,
@@ -41,6 +45,13 @@ export async function startRecorder(): Promise<Recorder> {
     const data = e.data as Float32Array;
     frames.push(data);
     totalSamples += data.length;
+    if (opts.onLevel) {
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) sum += data[i]! * data[i]!;
+      const rms = Math.sqrt(sum / data.length);
+      // Compress dynamic range so typical voice (~0.05–0.2 RMS) spans most of the meter.
+      opts.onLevel(Math.min(1, Math.sqrt(rms) * 2.2));
+    }
   };
   source.connect(node);
   node.connect(ctx.destination);
@@ -135,6 +146,8 @@ export type VadRecorderEvents = {
   onSpeechEnd: (wavBase64: string, durationMs: number) => void;
   onMisfire?: () => void;
   onError?: (err: Error) => void;
+  /** Per-frame speech probability in 0..1 (from Silero). Fires ~every 32ms. */
+  onLevel?: (prob01: number) => void;
 };
 
 export type VadRecorderTunables = {
@@ -167,6 +180,9 @@ export async function startVadRecorder(
     preSpeechPadFrames: tunables.preSpeechPadFrames ?? 3,
     onSpeechStart: events.onSpeechStart,
     onVADMisfire: () => events.onMisfire?.(),
+    onFrameProcessed: events.onLevel
+      ? (probs: { isSpeech: number }) => events.onLevel!(probs.isSpeech)
+      : undefined,
     onSpeechEnd: async (audio: Float32Array) => {
       try {
         const wav = encodeWav16k(audio);

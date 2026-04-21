@@ -121,10 +121,39 @@ function tryFlushSegment(
   return null;
 }
 
+// Preference order for the default TTS. First entry wins when available.
+// Kokoro can be opted out with AUTOBENCH_DISABLE_KOKORO=1 — useful while the
+// kokoro-js + onnxruntime-node stack is shaking out (see open follow-up #1).
+const TTS_PREFERENCE = ["kokoro", "piper", "macos-say"] as const;
+
+function ttsAvailability(): Record<string, { available: boolean; reason?: string }> {
+  return {
+    kokoro: process.env.AUTOBENCH_DISABLE_KOKORO
+      ? { available: false, reason: "disabled via AUTOBENCH_DISABLE_KOKORO" }
+      : { available: true },
+    piper: process.env.PIPER_MODEL
+      ? { available: true }
+      : { available: false, reason: "PIPER_MODEL env var not set on server" },
+    "macos-say": process.platform === "darwin"
+      ? { available: true }
+      : { available: false, reason: "macos-say only runs on darwin" },
+  };
+}
+
+function pickDefaultTts(): { name: string; preference: readonly string[]; availability: Record<string, { available: boolean; reason?: string }> } {
+  const availability = ttsAvailability();
+  const name = TTS_PREFERENCE.find((n) => availability[n]?.available) ?? "macos-say";
+  return { name, preference: TTS_PREFERENCE, availability };
+}
+
 export function registerPlaygroundRoutes(app: Express): void {
   const cache = new PluginCache();
   const router = express.Router();
   router.use(express.json({ limit: "25mb" }));
+
+  router.get("/defaults", (_req, res) => {
+    res.json({ tts: pickDefaultTts() });
+  });
 
   router.post("/chat/stream", async (req, res) => {
     const body = req.body as ChatBody | undefined;

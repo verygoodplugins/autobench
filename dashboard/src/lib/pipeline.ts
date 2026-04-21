@@ -15,6 +15,7 @@ export type PipelineConfig = {
   stt: { name: string };
   tts: { name: string; enabled: boolean };
   system: string;
+  voiceSystem: string;
 };
 
 export const CLAUDE_MODELS = [
@@ -27,6 +28,9 @@ export const MODEL_DEFAULTS: Record<string, string> = {
   ollama: "qwen2.5-coder:32b",
   claude: "claude-haiku-4-5",
 };
+
+export const DEFAULT_VOICE_PROMPT =
+  "You are in a real-time voice conversation. The user's words arrive as a raw speech-to-text transcript — expect occasional misheard homophones, missing punctuation, or chopped sentences, and infer their meaning from context rather than fixating on literal wording. If you are genuinely unsure what they meant, ask one brief clarifying question. Keep replies short and natural, like a human actually talking — typically one or two sentences unless the user asks for more. Do not emit markdown, code fences, bullet lists, or headings; your reply is spoken aloud by a text-to-speech engine. Do not spell out URLs or punctuation marks.";
 
 export const DEFAULT_PIPELINE: PipelineConfig = {
   llm: {
@@ -41,6 +45,7 @@ export const DEFAULT_PIPELINE: PipelineConfig = {
   stt: { name: "parakeet" },
   tts: { name: "macos-say", enabled: true },
   system: "",
+  voiceSystem: DEFAULT_VOICE_PROMPT,
 };
 
 // Build the { name, config } payload the playground endpoints expect.

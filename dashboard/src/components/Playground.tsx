@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChatPanel } from "./playground/ChatPanel";
 import { VoicePanel } from "./playground/VoicePanel";
 import { DEFAULT_PIPELINE, type PipelineConfig } from "../lib/pipeline";
@@ -18,6 +18,26 @@ export function Playground() {
       .then((r) => r.json())
       .then(setRegistry)
       .catch((e) => setError(String(e)));
+  }, []);
+
+  // Pick the best TTS available on this server (kokoro > piper > macos-say).
+  // Only runs once and only if the user hasn't already changed the default.
+  const appliedDefaultsRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (appliedDefaultsRef.current) return;
+    appliedDefaultsRef.current = true;
+    fetch("/playground/defaults")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { tts?: { name?: string } } | null) => {
+        const next = data?.tts?.name;
+        if (!next) return;
+        setPipeline((prev) =>
+          prev.tts.name === DEFAULT_PIPELINE.tts.name && next !== prev.tts.name
+            ? { ...prev, tts: { ...prev.tts, name: next } }
+            : prev
+        );
+      })
+      .catch(() => undefined);
   }, []);
 
   return (
