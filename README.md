@@ -2,6 +2,10 @@
 
 A plugin-based harness for building, benchmarking, and A/B-ing local voice and chat pipelines.
 
+<p align="center" width="100%">
+<video src="https://github.com/user-attachments/assets/8c2458f8-70e3-4ee6-a828-f25dcd82b7f0" width="80%" controls></video>
+</p>
+
 ```text
 [ mic ] → VAD → STT → LLM → TTS → [ speaker ]
                        ^
